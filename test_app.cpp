@@ -15,10 +15,10 @@ void print_args(intptr_t args)
     global += args;
 
     cout << "GLOBAL: " << global << endl;
-    
+
 }
 
 int main()
 {
-    cpu::boot(1, (thread_startfunc_t) parent, (void *) 100, false, false, 0);
+    cpu::boot(1, (thread_startfunc_t) print_args, (void *) 100, false, false, 0);
 }
