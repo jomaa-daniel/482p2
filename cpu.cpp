@@ -20,6 +20,14 @@ void ipi_handler()
     cpu::interrupt_enable();
 }
 
+
+
+// ====================== CPU IMPL IMPLEMENTATION ==================
+cpu::impl::~impl()
+{
+    delete_context(this->running_context);
+}
+
 ucontext_t* init_context(thread_startfunc_t func, void *arg){
     ucontext_t* ucp = new ucontext_t;
     getcontext(ucp); // initialize ucontext, as required by interface
@@ -38,12 +46,6 @@ void delete_context(ucontext_t *ucp){
     delete[] ucp->uc_stack.ss_sp;
     delete ucp; 
     ucp = nullptr;
-}
-
-// ====================== CPU IMPL IMPLEMENTATION ==================
-cpu::impl::~impl()
-{
-    delete_context(this->running_context);
 }
 
 // ====================== CPU IMPLEMENTATION ========================
