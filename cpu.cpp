@@ -3,6 +3,7 @@
 #include <iostream> 
 #include <ucontext.h>
 #include "cpu_impl.h"
+#include <memory>
 using std::cout;
 
 
@@ -28,6 +29,11 @@ cpu::impl::~impl()
     delete_context(this->running_context);
 }
 
+cpu::impl::impl()
+{
+    this->running_context = nullptr;
+}
+
 ucontext_t* init_context(thread_startfunc_t func, void *arg){
     ucontext_t* ucp = new ucontext_t;
     getcontext(ucp); // initialize ucontext, as required by interface
@@ -37,7 +43,7 @@ ucontext_t* init_context(thread_startfunc_t func, void *arg){
         ucp->uc_stack.ss_sp = stack;
         ucp->uc_stack.ss_size = STACK_SIZE;
         ucp->uc_stack.ss_flags = 0;
-        makecontext(ucp, (void (*)()) func, 1, arg);
+        makecontext(ucp, (void (*)()) stub, 2, func, arg);
     }
     return ucp;
 }
@@ -54,11 +60,13 @@ void cpu::init(thread_startfunc_t func, void * arg)
 {
     cpu::interrupt_vector_table[TIMER] = timer_handler;
     cpu::interrupt_vector_table[IPI] = ipi_handler;
-    this->impl_ptr = new impl();
+    std::unique_ptr<impl> u_ptr(new cpu::impl());
+
+    this->impl_ptr = u_ptr.get();
     ucontext_t *thread_cont;
 
     thread_cont = init_context(func, arg);
     this->impl_ptr->running_context = thread_cont;
     setcontext(thread_cont);
-        
+    
 }
