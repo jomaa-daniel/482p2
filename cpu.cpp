@@ -4,8 +4,14 @@
 #include <ucontext.h>
 #include "cpu_impl.h"
 #include <memory>
+#include "globals.h"
 using std::cout;
 
+std::queue<ucontext_t*> ready_queue;
+std::vector<ucontext_t*> delete_queue; // TODO when we move something to the 
+                                            // delete queue we need to check to see if something is waiting on it
+std::unordered_map<ucontext_t*, ucontext_t*> waiting_map; // A
+std::queue<cpu*> sleeping_queue;
 
 void timer_handler()
 {
@@ -54,9 +60,13 @@ void delete_context(ucontext_t *ucp){
     ucp = nullptr;
 }
 
+
+
+
 // ====================== CPU IMPLEMENTATION ========================
 void cpu::init(thread_startfunc_t func, void * arg)
 {
+
     cpu::interrupt_vector_table[TIMER] = timer_handler;
     cpu::interrupt_vector_table[IPI] = ipi_handler;
     std::unique_ptr<impl> u_ptr(new cpu::impl());

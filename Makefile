@@ -1,7 +1,7 @@
 CC=g++ -g -Wall
 
 # List of source files for your thread library
-THREAD_SOURCES=cpu.cpp thread.cpp
+THREAD_SOURCES=cpu.cpp thread.cpp mutex.cpp
 
 # Generate the names of the thread library's object files
 THREAD_OBJS=${THREAD_SOURCES:.cpp=.o}
@@ -14,7 +14,7 @@ libthread.o: ${THREAD_OBJS}
 	ld -r -o $@ ${THREAD_OBJS}
 
 # Compile an application program
-app: test_join.cpp libthread.o libcpu.o
+app: test_mutex.cpp libthread.o libcpu.o
 	${CC} -o $@ $^ -ldl -pthread
 
 # Generic rules for compiling a source file to an object file

@@ -7,28 +7,28 @@
 #include "cpu_impl.h"
 #include <vector>
 #include "cpu.h"
+#include "globals.h"
 
 
 using std::cout;
 
 
-static std::queue<ucontext_t*> ready_queue;
-static std::vector<ucontext_t*> delete_queue; // TODO when we move something to the 
-                                            // delete queue we need to check to see if something is waiting on it
-static std::unordered_map<ucontext_t*, ucontext_t*> waiting_queue; // A
-static std::queue<cpu*> sleeping_queue;
+
 
 void thread_exit(){
+    // from user code, interrupts enabled
     // TODO do we need interrupts here?
+    cpu::interrupt_disable();
+    while (cpu::guard.exchange(true)){}
     ucontext_t *current_context = cpu::self()->impl_ptr->running_context;
     // TODO INTERRUPTS
     delete_queue.push_back(current_context);
 
     // check to see if anything is waiting on this to end
-    if (waiting_queue.find(current_context) != end(waiting_queue))
+    if (waiting_map.find(current_context) != end(waiting_map))
     {
-        ready_queue.push(waiting_queue[current_context]);
-        waiting_queue.erase(current_context);
+        ready_queue.push(waiting_map[current_context]);
+        waiting_map.erase(current_context);
     }
  
     if(!ready_queue.empty()){
@@ -43,21 +43,25 @@ void thread_exit(){
         setcontext(next_context); // INVARIANT: interrupts disabled
         assert_interrupts_disabled();
     }
-    // INVARIANT: interrupts disabled
-    //SLEEP!
-    sleeping_queue.push(cpu::self());
-    cpu::interrupt_enable_suspend();
-    //enable interrupts again
+    else
+    {
+        sleeping_queue.push(cpu::self());
+        cpu::interrupt_enable_suspend();
+    }
+
 }
 
 void stub(thread_startfunc_t func, void *arg){
+
+    cpu::interrupt_enable();
+    cpu::guard = false;
     //Not sure if this is correct
     func(arg);
 
-    //Cleanup thread
+
+    //cleanup
     thread_exit();
 }
-
 
 class thread::impl{
     public:
@@ -98,11 +102,13 @@ thread::thread(thread_startfunc_t func, void* arg){
 }
 
 thread::~thread(){
+    // assert this context is somewhere else
     delete impl_ptr;
 }
-
+// B C   isDisabled = false
 void thread::yield(){
-    //cpu::interrupt_disable();
+    cpu::interrupt_disable();
+    while (cpu::guard.exchange(true)){}
     //No other ready threads
     if(!ready_queue.empty()){
         cpu *cpu_ptr = cpu::self();
@@ -124,17 +130,18 @@ void thread::yield(){
     {
         delete_context(ptr);
     }
-
-    //cpu::interrupt_enable();
+    cpu::guard = false;
+    cpu::interrupt_enable();
 }
 
 void thread::join(){
 // do NOT run the original thread when this is done, threads need 
   // to be run in FIFO order. just put the caller thread on the ready Q
 
-  // INTERRUPTS NEEDED
+    cpu::interrupt_disable();
+    while (cpu::guard.exchange(true)){}
     ucontext_t* this_context = cpu::self()->impl_ptr->running_context;
-    waiting_queue[this->impl_ptr->context_ptr] = this_context;
+    waiting_map[this->impl_ptr->context_ptr] = this_context;
 
     if (ready_queue.empty())
     {
@@ -148,7 +155,16 @@ void thread::join(){
     // INTERRUPT NEEDED
     // do we care if it gets interrupted here?
     
-
-    swapcontext(this_context, next_context);
+    cpu::self()->impl_ptr->running_context = next_context;
     
+    swapcontext(this_context, next_context);
+
+    //Delete done threads
+    for (auto ptr : delete_queue)
+    {
+        delete_context(ptr);
+    }
+    
+    cpu::guard = false;
+    cpu::interrupt_enable();
 }
