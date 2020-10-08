@@ -55,7 +55,6 @@ void delete_context(ucontext_t *ucp){
 }
 
 // ====================== CPU IMPLEMENTATION ========================
-
 void cpu::init(thread_startfunc_t func, void * arg)
 {
     cpu::interrupt_vector_table[TIMER] = timer_handler;
@@ -68,5 +67,4 @@ void cpu::init(thread_startfunc_t func, void * arg)
     thread_cont = init_context(func, arg);
     this->impl_ptr->running_context = thread_cont;
     setcontext(thread_cont);
-    
 }
