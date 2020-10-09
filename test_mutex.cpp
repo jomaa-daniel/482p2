@@ -16,6 +16,7 @@ void child(char args){
     printf("Thread %c locked\n", args);
     printf("Thread %c is doing work\n", args);
     m.unlock();
+    printf("Thread %c unlocked\n", args);
     printf("Finishing thread: %c \n", args);
 }
 
@@ -44,6 +45,7 @@ int main()
 {
     cpu::boot(1, (thread_startfunc_t) parent, (void *) 100, false, false, 0);
 }
+
 /*
 Running thread: A
 Created threads:

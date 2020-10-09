@@ -28,6 +28,7 @@ void mutex::lock(){
         }
         else{       
             sleeping_queue.push(cpu::self());
+            cpu::guard = false;
             cpu::interrupt_enable_suspend();
         }
     }
@@ -36,10 +37,7 @@ void mutex::lock(){
     }
 
     //Delete done threads
-    for (auto ptr : delete_queue)
-    {
-        delete_context(ptr);
-    }
+    clean_delete_list();
 
     cpu::guard = false;
     cpu::interrupt_enable();
@@ -57,12 +55,6 @@ void mutex::unlock()
         ready_queue.push(next_context);
         this->impl_ptr->busy = true;
     }
-    
-    //Delete done threads
-    for (auto ptr : delete_queue)
-    {
-        delete_context(ptr);
-    }
 
     cpu::guard = false;
     cpu::interrupt_enable();
@@ -78,3 +70,5 @@ mutex::impl::~impl()
 {
     
 }
+
+

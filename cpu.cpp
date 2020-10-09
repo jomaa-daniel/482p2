@@ -5,6 +5,7 @@
 #include "cpu_impl.h"
 #include <memory>
 #include "globals.h"
+#include <cstring>
 using std::cout;
 
 std::queue<ucontext_t*> ready_queue;
@@ -12,6 +13,8 @@ std::vector<ucontext_t*> delete_queue; // TODO when we move something to the
                                             // delete queue we need to check to see if something is waiting on it
 std::unordered_map<ucontext_t*, ucontext_t*> waiting_map; // A
 std::queue<cpu*> sleeping_queue;
+
+
 
 void timer_handler()
 {
@@ -40,12 +43,15 @@ cpu::impl::impl()
     this->running_context = nullptr;
 }
 
+std::unordered_map<ucontext_t*, char*> base_pointer_map;
+
 ucontext_t* init_context(thread_startfunc_t func, void *arg){
     ucontext_t* ucp = new ucontext_t;
     getcontext(ucp); // initialize ucontext, as required by interface
     ucp->uc_link = nullptr;
     if (func) {
         char* stack = new char[STACK_SIZE];
+        base_pointer_map[ucp] = stack;
         ucp->uc_stack.ss_sp = stack;
         ucp->uc_stack.ss_size = STACK_SIZE;
         ucp->uc_stack.ss_flags = 0;
@@ -55,9 +61,11 @@ ucontext_t* init_context(thread_startfunc_t func, void *arg){
 }
 
 void delete_context(ucontext_t *ucp){
-    delete[] ucp->uc_stack.ss_sp;
+    delete[] (char*) base_pointer_map[ucp];
+    base_pointer_map.erase(ucp);
     delete ucp; 
     ucp = nullptr;
+    
 }
 
 

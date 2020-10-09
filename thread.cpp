@@ -12,8 +12,15 @@
 
 using std::cout;
 
+static int num_threads = 1000;
 
-
+void clean_delete_list(){
+    for (auto ptr : delete_queue)
+    {
+        delete_context(ptr);
+    }
+    delete_queue.clear();
+}
 
 void thread_exit(){
     // from user code, interrupts enabled
@@ -46,6 +53,7 @@ void thread_exit(){
     else
     {
         sleeping_queue.push(cpu::self());
+        cpu::guard = false;
         cpu::interrupt_enable_suspend();
     }
 
@@ -66,13 +74,14 @@ void stub(thread_startfunc_t func, void *arg){
 class thread::impl{
     public:
     ucontext_t *context_ptr;
+    int thread_id;
     impl();
     ~impl();
 };
-
 thread::impl::impl()
 {
     this->context_ptr = nullptr;
+    this->thread_id = num_threads++;
 }
 
 thread::impl::~impl()
@@ -82,12 +91,14 @@ thread::impl::~impl()
 
 
 thread::thread(thread_startfunc_t func, void* arg){
-    this->impl_ptr = new impl();
     
+    this->impl_ptr = new impl();
+
+    cpu::interrupt_disable();
+    while (cpu::guard.exchange(true)){}
+
     this->impl_ptr->context_ptr = init_context(func, arg);
     
-    //TODO
-    //cpu::interrupt_disable();
     ready_queue.push(this->impl_ptr->context_ptr);    
 
     if(!sleeping_queue.empty()){
@@ -96,16 +107,17 @@ thread::thread(thread_startfunc_t func, void* arg){
         front->interrupt_send();
     }
 
-    //TODO
-    //cpu::interrupt_enable();
+    cpu::guard = false;
+    cpu::interrupt_enable();
 
 }
 
 thread::~thread(){
+   //printf("dealloc thread: %i\n",thread::impl_ptr->thread_id);
     // assert this context is somewhere else
     delete impl_ptr;
 }
-// B C   isDisabled = false
+
 void thread::yield(){
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)){}
@@ -126,10 +138,9 @@ void thread::yield(){
     }
     
     //Delete done threads
-    for (auto ptr : delete_queue)
-    {
-        delete_context(ptr);
-    }
+    //printf("Del %i threads in yeild\n", delete_queue.size());
+    clean_delete_list();
+
     cpu::guard = false;
     cpu::interrupt_enable();
 }
@@ -146,6 +157,7 @@ void thread::join(){
     if (ready_queue.empty())
     {
         sleeping_queue.push(cpu::self());
+        cpu::guard = false;
         cpu::interrupt_enable_suspend();
     }
 
@@ -160,10 +172,8 @@ void thread::join(){
     swapcontext(this_context, next_context);
 
     //Delete done threads
-    for (auto ptr : delete_queue)
-    {
-        delete_context(ptr);
-    }
+    //printf("Del %i threads in join\n", delete_queue.size());
+    clean_delete_list();
     
     cpu::guard = false;
     cpu::interrupt_enable();
