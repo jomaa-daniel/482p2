@@ -8,7 +8,7 @@
 extern  std::queue<ucontext_t*> ready_queue;
 extern  std::vector<ucontext_t*> delete_queue; // TODO when we move something to the 
                                             // delete queue we need to check to see if something is waiting on it
-extern  std::unordered_map<ucontext_t*, ucontext_t*> waiting_map; // A
+extern  std::unordered_map<ucontext_t*, std::queue<ucontext_t*>> waiting_map; // A
 extern  std::queue<cpu*> sleeping_queue;
 
 void clean_delete_list();

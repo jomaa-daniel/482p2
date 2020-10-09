@@ -8,7 +8,7 @@
 #include <vector>
 #include "cpu.h"
 #include "globals.h"
-
+#include "thread_impl.h"
 
 using std::cout;
 
@@ -28,13 +28,19 @@ void thread_exit(){
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)){}
     ucontext_t *current_context = cpu::self()->impl_ptr->running_context;
-    // TODO INTERRUPTS
+
     delete_queue.push_back(current_context);
 
     // check to see if anything is waiting on this to end
     if (waiting_map.find(current_context) != end(waiting_map))
     {
-        ready_queue.push(waiting_map[current_context]);
+        // pop all the people waiting to call join in order FIFO
+        while (!waiting_map[current_context].empty())
+        {
+            ucontext_t* next_context =  waiting_map[current_context].front();
+            ready_queue.push(next_context);
+            waiting_map[current_context].pop();
+        }  
         waiting_map.erase(current_context);
     }
  
@@ -71,13 +77,7 @@ void stub(thread_startfunc_t func, void *arg){
     thread_exit();
 }
 
-class thread::impl{
-    public:
-    ucontext_t *context_ptr;
-    int thread_id;
-    impl();
-    ~impl();
-};
+
 thread::impl::impl()
 {
     this->context_ptr = nullptr;
@@ -152,8 +152,12 @@ void thread::join(){
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)){}
     ucontext_t* this_context = cpu::self()->impl_ptr->running_context;
-    waiting_map[this->impl_ptr->context_ptr] = this_context;
-
+    if (waiting_map.find(this->impl_ptr->context_ptr) == end(waiting_map))
+    {
+        waiting_map[this->impl_ptr->context_ptr] = std::queue<ucontext_t*>();
+    }
+    waiting_map[this->impl_ptr->context_ptr].push(this_context);
+    // MAJOR TODO this overrides and will join on the last thing that calls thread.join()
     if (ready_queue.empty())
     {
         sleeping_queue.push(cpu::self());

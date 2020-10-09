@@ -11,7 +11,7 @@ using std::cout;
 std::queue<ucontext_t*> ready_queue;
 std::vector<ucontext_t*> delete_queue; // TODO when we move something to the 
                                             // delete queue we need to check to see if something is waiting on it
-std::unordered_map<ucontext_t*, ucontext_t*> waiting_map; // A
+std::unordered_map<ucontext_t*, std::queue<ucontext_t*>> waiting_map; // A
 std::queue<cpu*> sleeping_queue;
 
 
@@ -19,14 +19,41 @@ std::queue<cpu*> sleeping_queue;
 void timer_handler()
 {
     cpu::interrupt_disable();
-    cout << "Timer\n";
+    while (cpu::guard.exchange(true)) {}
+    if (!ready_queue.empty()){
+            
+    ucontext_t* next_context = ready_queue.front();
+    ready_queue.pop(); 
+    ucontext_t* this_context = cpu::self()->impl_ptr->running_context; 
+    cpu::self()->impl_ptr->running_context = next_context;
+    ready_queue.push(this_context);
+    swapcontext(this_context, next_context);
+    }
+    cpu::guard = false;
     cpu::interrupt_enable();    
 }
 
 void ipi_handler()
 {
     cpu::interrupt_disable();
-    cout << "ipi\n";
+    while (cpu::guard.exchange(true)) {}
+    
+    if (ready_queue.empty())
+    {
+        sleeping_queue.push(cpu::self());
+        cpu::guard = false;
+        cpu::interrupt_enable_suspend();
+    }
+    else
+    {
+        cpu *cpu_ptr = cpu::self();
+        ucontext_t *next_context = ready_queue.front();
+        ready_queue.pop();
+        cpu_ptr->impl_ptr->running_context = next_context;
+        setcontext(next_context); 
+    }
+
+    cpu::guard = false;
     cpu::interrupt_enable();
 }
 
@@ -79,10 +106,22 @@ void cpu::init(thread_startfunc_t func, void * arg)
     cpu::interrupt_vector_table[IPI] = ipi_handler;
     std::unique_ptr<impl> u_ptr(new cpu::impl());
 
-    this->impl_ptr = u_ptr.get();
-    ucontext_t *thread_cont;
+    // sAfety
+    while (cpu::guard.exchange(true)){}
 
-    thread_cont = init_context(func, arg);
-    this->impl_ptr->running_context = thread_cont;
-    setcontext(thread_cont);
+    if (func == nullptr)
+    {
+        //sleep 
+        cpu::guard = false;
+        sleeping_queue.push(cpu::self());
+        cpu::interrupt_enable_suspend();
+    }
+    else{
+        this->impl_ptr = u_ptr.get();
+        ucontext_t *thread_cont;
+
+        thread_cont = init_context(func, arg);
+        this->impl_ptr->running_context = thread_cont;
+        setcontext(thread_cont);
+    }
 }
