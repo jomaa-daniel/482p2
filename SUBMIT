@@ -17,4 +17,5 @@ test_mutex_simple.cpp
 test_mutex_wrong_holder.cpp
 test_sleeping_cpus.cpp
 thread.cpp
+thread_impl.h
 
