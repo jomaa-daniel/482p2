@@ -27,6 +27,7 @@ void child(char args){
 void parent(intptr_t args)
 {
     thread b = thread((thread_startfunc_t) child, (void*) 'B');
+    thread c = thread((thread_startfunc_t) child, (void*) 'C');
     m.lock();
     printf("Running thread: A\n");
     printf("Thread A locked\n");
@@ -38,7 +39,7 @@ void parent(intptr_t args)
 
 int main()
 {
-    cpu::boot(2, (thread_startfunc_t) parent, (void *) 100, false, false, 0);
+    cpu::boot(1, (thread_startfunc_t) parent, (void *) 100, true, true, 56);
 }
 
 /*

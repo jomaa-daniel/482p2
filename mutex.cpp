@@ -15,14 +15,14 @@ mutex::~mutex(){
 }
 
 void mutex::lock(){
-    assert(cpus_run_different_contexts());
    cpu::interrupt_disable();
-   while(std::atomic_exchange_explicit(&cpu::guard, true, std::memory_order_acquire)){}
-    while (cpu::guard.exchange(true)){}
-    ucontext_t* this_context = cpu::self()->impl_ptr->running_context;
-    getcontext(this_context);
+   while (cpu::guard.exchange(true)) {}
+   //print_state(this);
+    assert(cpus_run_different_contexts());
 
-    if(this->impl_ptr->busy and this->impl_ptr->holder!=this_context){
+    ucontext_t* this_context = cpu::self()->impl_ptr->running_context;
+
+    if(this->impl_ptr->busy){
 
         assert(context_count(this_context) == 0);
         this->impl_ptr->mutex_waiting_queue.push(this_context);
@@ -35,19 +35,17 @@ void mutex::lock(){
             swapcontext(this_context, next_context);            
         }
         else{ 
-            // line 34 
             sleeping_queue.push(cpu::self());
-            cpu::self()->impl_ptr->running_context = nullptr;
+            //cpu::self()->impl_ptr->running_context = nullptr;
             cpu::guard.store(false);
             cpu::interrupt_enable_suspend();
-            
         }
     }
     else{
         this->impl_ptr->busy = true;
         this->impl_ptr->holder = cpu::self()->impl_ptr->running_context;
     }
-
+    //print_state(this);
     //Delete done threads
     clean_delete_list();
     cpu::guard.store(false);
@@ -57,7 +55,7 @@ void mutex::lock(){
 void mutex::unlock()
 {
     cpu::interrupt_disable();
-    while (cpu::guard.exchange(true)){}
+    while (cpu::guard.exchange(true)) {}
     assert(cpus_run_different_contexts());
     if (!this->impl_ptr->busy) {throw std::runtime_error("Unlock on unlocked mutex\n");} 
     if(this->impl_ptr->holder!=cpu::self()->impl_ptr->running_context) {throw std::runtime_error("Wrong holder\n");}
@@ -71,8 +69,12 @@ void mutex::unlock()
         assert(context_count(next_context) == 1);
         this->impl_ptr->busy = true;
         this->impl_ptr->holder = next_context;
+        //printf("wake up guy on sleeping Q\n");
+        //print_state(this);
         wake_cpu();
+        //print_state(this);
     }
+    //print_state(this);
     cpu::guard.store(false);
     cpu::interrupt_enable();
 }

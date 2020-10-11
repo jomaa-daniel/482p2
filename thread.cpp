@@ -178,7 +178,7 @@ void thread_exit(){
     else
     {
         sleeping_queue.push(cpu::self());
-        cpu::self()->impl_ptr->running_context = nullptr;
+        //cpu::self()->impl_ptr->running_context = nullptr;
         cpu::guard.store(false);
         cpu::interrupt_enable_suspend();
     }
@@ -216,7 +216,7 @@ thread::thread(thread_startfunc_t func, void* arg){
     this->impl_ptr = new impl();
 
     cpu::interrupt_disable();
-    while (cpu::guard.exchange(true)){}
+    while (cpu::guard.exchange(true)) {}
 
     this->impl_ptr->context_ptr = init_context(func, arg);
 
@@ -225,7 +225,7 @@ thread::thread(thread_startfunc_t func, void* arg){
     ready_queue.push(this->impl_ptr->context_ptr);    
 
     wake_cpu();
-
+ 
     cpu::guard.store(false);
     cpu::interrupt_enable();
 

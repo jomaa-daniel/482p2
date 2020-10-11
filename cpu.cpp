@@ -20,15 +20,14 @@ void timer_handler()
 {
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)) {}
-    if (!ready_queue.empty()){
-            
-    ucontext_t* next_context = ready_queue.front();
-    ready_queue.pop(); 
-    ucontext_t* this_context = cpu::self()->impl_ptr->running_context; 
-    cpu::self()->impl_ptr->running_context = next_context;
-    ready_queue.push(this_context);
-    wake_cpu();
-    swapcontext(this_context, next_context);
+    if (!ready_queue.empty()){       
+        ucontext_t* next_context = ready_queue.front();
+        ready_queue.pop(); 
+        ucontext_t* this_context = cpu::self()->impl_ptr->running_context; 
+        cpu::self()->impl_ptr->running_context = next_context;
+        ready_queue.push(this_context);
+        wake_cpu();
+        swapcontext(this_context, next_context);
     }
     cpu::guard.store(false);
     cpu::interrupt_enable();    
@@ -51,12 +50,16 @@ void ipi_handler()
         cpu *cpu_ptr = cpu::self();
         ucontext_t *next_context = ready_queue.front();
         ready_queue.pop();
+        ucontext_t* this_context = cpu_ptr->impl_ptr->running_context;
         cpu_ptr->impl_ptr->running_context = next_context;
-        setcontext(next_context); 
+        if(this_context == nullptr){
+            setcontext(next_context);
+        }
+        else
+        {
+            swapcontext(this_context, next_context); 
+        }
     }
-
-    cpu::guard.store(false);
-    cpu::interrupt_enable();
 }
 
 
