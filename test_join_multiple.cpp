@@ -8,42 +8,80 @@
 using std::cout;
 using std::endl;
 
-
+cv cv_waiting;
+mutex m;
 int global = 0;
+int waiting = 0;
 
+void childB(thread* args)
+{
+    printf("Starting thread B, on CPU: %p \n", cpu::self());
+    m.lock();
+    printf("thread b is the %i to go",++waiting);
+    printf("Thread B signals on CPU: %p \n", cpu::self());
+    cv_waiting.signal();
+    m.unlock();
+    printf("Join on C during thread B on CPU: %p \n", cpu::self());
 
-void child(thread* args){
-    printf("Running thread: %c\n", args->impl_ptr->thread_id);
-    if(args->impl_ptr->thread_id == 0){
-        printf("Thread C joins thread B");
-        args.join();
+    args->join();
+    printf("Thread B exiting on CPU: %p \n", cpu::self());
+}
+void childD(thread* args)
+{
+    printf("Starting thread D on CPU: %p \n", cpu::self());
+    m.lock();
+    ++waiting;
+    printf("Thread D signals on CPU: %p \n", cpu::self());
+    cv_waiting.signal();
+    m.unlock();
+    printf("Join on C during thread D on CPU: %p \n", cpu::self());
+
+    args->join();
+    printf("Thread D exiting on CPU: %p \n", cpu::self());
+}
+
+void childC(thread* args){
+    printf("Start thread C on CPU: %p \n", cpu::self());
+    m.lock();
+    while (waiting < 2)
+    {
+        printf("Thread C is waiting CPU: %p \n", cpu::self());
+        cv_waiting.wait(m);
     }
-    printf("Thread %c is doing work\n", args->impl_ptr->thread_id);
-    printf("Finishing thread: %c \n", args->impl_ptr->thread_id);
+    m.unlock();
+    printf("finishing thread C on CPU: %p \n", cpu::self());
+    
 }
 
 
 void A(intptr_t args)
 {
-    printf("Running thread: A\n");
+    printf("Running thread: A, on CPU: %p \n", cpu::self());
     
-    thread b = thread((thread_startfunc_t) child, (void*) &b);
-    thread c = thread((thread_startfunc_t) child, (void*) &c);
-    printf("Created threads: \n");
+    thread c = thread((thread_startfunc_t) childC, (void*) &c);
+    thread b = thread((thread_startfunc_t) childB, (void*) &c);
+    thread d = thread((thread_startfunc_t) childD, (void*) &c);
 
-    printf("Thread C joins A\n");
+    printf("Created threads: , on CPU: %p \n", cpu::self());
 
+   
+    m.lock();
+    ++waiting;
+    cv_waiting.signal();
+    printf("Thread A signaled, on CPU: %p \n", cpu::self());
+    m.unlock();
+    printf("Thread A joins C , on CPU: %p \n", cpu::self());
     c.join();
 
-    printf("Thread A running\n");
+    printf("Thread A running, on CPU: %p \n", cpu::self());
 
-    printf("Finishing thread: A\n");
+    printf("Finishing thread: A, on CPU: %p \n", cpu::self());
 
 }
 
 int main()
 {
-    cpu::boot(1, (thread_startfunc_t) A, (void *) 100, false, false, 0);
+    cpu::boot(2, (thread_startfunc_t) A, (void *) 100, false, false, 0);
 }
 
 /*

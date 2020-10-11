@@ -33,4 +33,5 @@ void A(intptr_t args)
 int main()
 {
     cpu::boot(1, (thread_startfunc_t) A, (void *) 100, false, false, 0);
+    printf("DONE!");
 }

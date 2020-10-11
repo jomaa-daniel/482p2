@@ -5,6 +5,7 @@ class thread::impl{
     public:
     ucontext_t *context_ptr;
     int thread_id;
+    bool alive;
     impl();
     ~impl();
 };

@@ -50,7 +50,7 @@ void parent(intptr_t args)
 
 int main()
 {
-    cpu::boot(2, (thread_startfunc_t) parent, (void *) 100, false, false, 0);
+    cpu::boot(1, (thread_startfunc_t) parent, (void *) 100, true, true, 6);
 }
 
 /*
