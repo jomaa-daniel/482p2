@@ -25,6 +25,7 @@ void mutex::lock(){
     if(this->impl_ptr->busy){
 
         assert(context_count(this_context) == 0);
+        
         this->impl_ptr->mutex_waiting_queue.push(this_context);
 
         if(!ready_queue.empty()){
@@ -35,10 +36,7 @@ void mutex::lock(){
             swapcontext(this_context, next_context);            
         }
         else{ 
-            sleeping_queue.push(cpu::self());
-            //cpu::self()->impl_ptr->running_context = nullptr;
-            cpu::guard.store(false);
-            cpu::interrupt_enable_suspend();
+            swapcontext(this_context, cpu::self()->impl_ptr->sleep_context);
         }
     }
     else{
@@ -66,6 +64,7 @@ void mutex::unlock()
         ucontext_t* next_context = this->impl_ptr->mutex_waiting_queue.front();
         this->impl_ptr->mutex_waiting_queue.pop();
         ready_queue.push(next_context);
+        //printf("Next context that should be ready queue: %p \n", next_context);
         assert(context_count(next_context) == 1);
         this->impl_ptr->busy = true;
         this->impl_ptr->holder = next_context;

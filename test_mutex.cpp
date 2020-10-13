@@ -32,14 +32,14 @@ void parent(intptr_t args)
     printf("Running thread: A\n");
     printf("Thread A locked\n");
     printf("Thread A yields\n");
-    thread::yield();
+    //thread::yield();
     printf("Finishing thread: A\n");
     m.unlock();
 }
 
 int main()
 {
-    cpu::boot(1, (thread_startfunc_t) parent, (void *) 100, true, true, 56);
+    cpu::boot(4, (thread_startfunc_t) parent, (void *) 100, true, true, 56);
 }
 
 /*

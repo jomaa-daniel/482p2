@@ -56,10 +56,7 @@ void cv::wait(mutex &m)
         swapcontext(this_context, next_context);            
     }
     else{       
-        sleeping_queue.push(cpu::self());
-        cpu::self()->impl_ptr->running_context = nullptr;
-        cpu::guard.store(false);
-        cpu::interrupt_enable_suspend();
+        swapcontext(this_context, cpu::self()->impl_ptr->sleep_context);
     }
 
     cpu::guard.store(false);

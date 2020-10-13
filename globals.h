@@ -14,6 +14,7 @@ extern  std::queue<cpu*> sleeping_queue;
 extern  std::unordered_map<ucontext_t *, thread*> context_to_thread;
 extern  std::vector<cpu*> running_cpus;
 
+
 // ==========
 bool occurs_once();
 bool cpus_run_different_contexts();

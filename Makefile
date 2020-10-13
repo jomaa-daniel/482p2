@@ -1,4 +1,4 @@
-CC=g++ -g -Wall
+CC=g++ -fsanitize=address -g -Wall
 
 # List of source files for your thread library
 THREAD_SOURCES=cpu.cpp thread.cpp mutex.cpp cv.cpp

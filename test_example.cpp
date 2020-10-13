@@ -34,16 +34,19 @@ void parent(void *a)
 {
     intptr_t arg = (intptr_t) a;
 
-    // mutex1.lock();
-    // cout << "parent called with arg " << arg << "\n";
-    // mutex1.unlock();
+    mutex1.lock();
+    cout << "parent called with arg " << arg << "\n";
+    mutex1.unlock();
 
     thread t1 ( (thread_startfunc_t) loop, (void *) "child thread");
+    thread t2 ( (thread_startfunc_t) loop, (void *) "child thread");
+    thread t3 ( (thread_startfunc_t) loop, (void *) "child thread");
 
     loop( (void *) "parent thread");
 }
 
 int main()
 {
-    cpu::boot(2, (thread_startfunc_t) parent, (void *) 100, false, false, 0);
+    cpu::boot(3, (thread_startfunc_t) parent, (void *) 100, true, true, 0);
+
 }

@@ -3,6 +3,7 @@ class cpu::impl
 {
     public:
     ucontext_t *running_context = nullptr;
+    ucontext_t * sleep_context = nullptr;
     impl();
     ~impl();
 };

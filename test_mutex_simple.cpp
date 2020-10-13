@@ -19,17 +19,15 @@ void child(char args){
 void parent(intptr_t args)
 {
     thread b = thread((thread_startfunc_t) child, (void*) 'B');
+    thread c = thread((thread_startfunc_t) child, (void*) 'C');
     m.lock();
     printf("Running thread A \n", args);
-
+    thread::yield();
     m.unlock();
+
 }
 
 int main()
 {
-    cpu::boot(2, (thread_startfunc_t) parent, (void *) 100, false, false, 0);
+    cpu::boot(4, (thread_startfunc_t) parent, (void *) 100, false, true, 0);
 }
-
-/*
-
-*/

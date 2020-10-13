@@ -33,7 +33,7 @@ bool cpus_run_different_contexts(){
 }
 
 void wake_cpu(){
-    if(!sleeping_queue.empty()){
+    if(!sleeping_queue.empty() and !ready_queue.empty()){
         cpu *front = sleeping_queue.front();
         sleeping_queue.pop();
         assert(front != nullptr);
@@ -177,18 +177,14 @@ void thread_exit(){
     }
     else
     {
-        sleeping_queue.push(cpu::self());
-        //cpu::self()->impl_ptr->running_context = nullptr;
-        cpu::guard.store(false);
-        cpu::interrupt_enable_suspend();
+        setcontext(cpu::self()->impl_ptr->sleep_context);
     }
-
 }
 
 void stub(thread_startfunc_t func, void *arg){
 
-    cpu::interrupt_enable();
     cpu::guard.store(false);
+    cpu::interrupt_enable();
     //Not sure if this is correct
     func(arg);
 
@@ -212,7 +208,6 @@ thread::impl::~impl()
 
 
 thread::thread(thread_startfunc_t func, void* arg){
-    
     this->impl_ptr = new impl();
 
     cpu::interrupt_disable();
@@ -225,7 +220,8 @@ thread::thread(thread_startfunc_t func, void* arg){
     ready_queue.push(this->impl_ptr->context_ptr);    
 
     wake_cpu();
- 
+    
+
     cpu::guard.store(false);
     cpu::interrupt_enable();
 
@@ -234,9 +230,15 @@ thread::thread(thread_startfunc_t func, void* arg){
 thread::~thread(){
    //printf("dealloc thread: %i\n",thread::impl_ptr->thread_id);
     // assert this context is somewhere else
+    cpu::interrupt_disable();
+    while (cpu::guard.exchange(true)) {}
+    
     if (context_to_thread.find(this->impl_ptr->context_ptr) != end(context_to_thread))
     {context_to_thread[this->impl_ptr->context_ptr] = nullptr;}
     delete impl_ptr;
+    
+    cpu::guard.store(false);
+    cpu::interrupt_enable();
 }
 
 void thread::yield(){
@@ -299,11 +301,7 @@ void thread::join(){
         
         if (ready_queue.empty())
         {
-            
-            sleeping_queue.push(cpu::self());
-            cpu::self()->impl_ptr->running_context = nullptr;
-            cpu::guard = false;
-            cpu::interrupt_enable_suspend();
+            swapcontext(this_context, cpu::self()->impl_ptr->sleep_context);
         }
 
         ucontext_t *next_context = ready_queue.front(); 
