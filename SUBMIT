@@ -16,7 +16,6 @@ test_mutex_double_unlock.cpp
 test_mutex_simple.cpp
 test_mutex_wrong_holder.cpp
 test_sleeping_cpus.cpp
-test_example.cpp
 thread.cpp
 thread_impl.h
 
