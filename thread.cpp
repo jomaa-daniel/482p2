@@ -45,8 +45,9 @@ void wake_cpu(){
 void clean_delete_list(){
     for (auto ptr : delete_queue)
     {
-        if (context_to_thread.find(ptr) != end(context_to_thread))
-        {context_to_thread.erase(ptr);}
+        //printf("Calling clean delete list\n");
+        assert(context_to_thread.find(ptr) != end(context_to_thread));
+        context_to_thread.erase(ptr);
         delete_context(ptr);
     }
     delete_queue.clear();
@@ -116,7 +117,7 @@ int context_count(ucontext_t* check_context){
     return total_count;
 }
 
-bool occurs_once(ucontext_t* check)
+int count_running_instances(ucontext_t* check)
 {
     int num_seen = 0;
     for (auto cpu_ptr : running_cpus)
@@ -125,9 +126,8 @@ bool occurs_once(ucontext_t* check)
         {
             ++num_seen;
         }
-        if (num_seen > 1){return false;}
     }
-    return true;
+    return num_seen;
 }
 
 // ================= END utility functions ==============
@@ -136,18 +136,21 @@ void thread_exit(){
     
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)){}
+    //printf("Calling thread exit\n");
     assert(cpus_run_different_contexts());
     ucontext_t *current_context = cpu::self()->impl_ptr->running_context;
     assert(context_count(current_context) == 0);
     delete_queue.push_back(current_context);
     assert(context_count(current_context) == 1);
     // inform the thread that its context is now dead
-    if (context_to_thread.find(current_context) != end(context_to_thread))
+    assert(context_to_thread.find(current_context) != end(context_to_thread));
+ 
+    thread *corres_thread = context_to_thread[current_context];
+    if (corres_thread != nullptr)
     {
-        thread * corres_thread = context_to_thread[current_context];
-        if (corres_thread != nullptr){
-        corres_thread->impl_ptr->alive = false;}
+        corres_thread->impl_ptr->alive = false;
     }
+    
 
     // check to see if anything is waiting on this to end
     if (waiting_map.find(current_context) != end(waiting_map))
@@ -157,12 +160,16 @@ void thread_exit(){
         {
             ucontext_t* next_context =  waiting_map[current_context].front();
             ready_queue.push(next_context);
+            //printf("Thread exiting waking up person waiting for me\n");
             wake_cpu();
             waiting_map[current_context].pop();
         }  
         waiting_map.erase(current_context);
     }
  
+    assert(context_count(current_context) == 1);
+    assert(count_running_instances(current_context) == 1);
+
     if(!ready_queue.empty()){
         cpu *cpu_ptr = cpu::self();
         // context switch
@@ -208,17 +215,18 @@ thread::impl::~impl()
 
 
 thread::thread(thread_startfunc_t func, void* arg){
-    this->impl_ptr = new impl();
 
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)) {}
+    this->impl_ptr = new impl();
 
     this->impl_ptr->context_ptr = init_context(func, arg);
+    //printf("Thread %i belongs to %p\n", this->impl_ptr->thread_id, this->impl_ptr->context_ptr);
 
     context_to_thread[this->impl_ptr->context_ptr] = this;
     
     ready_queue.push(this->impl_ptr->context_ptr);    
-
+    //printf("INIT Thread %i\n", this->impl_ptr->thread_id);
     wake_cpu();
     
 
@@ -232,9 +240,11 @@ thread::~thread(){
     // assert this context is somewhere else
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)) {}
+    //printf("Destructing thread %i\n", this->impl_ptr->thread_id);
     
     if (context_to_thread.find(this->impl_ptr->context_ptr) != end(context_to_thread))
     {context_to_thread[this->impl_ptr->context_ptr] = nullptr;}
+
     delete impl_ptr;
     
     cpu::guard.store(false);
@@ -303,17 +313,15 @@ void thread::join(){
         {
             swapcontext(this_context, cpu::self()->impl_ptr->sleep_context);
         }
-
-        ucontext_t *next_context = ready_queue.front(); 
-        assert(context_count(next_context) == 1);
-        ready_queue.pop();
-        
-        // INTERRUPT NEEDED
-        // do we care if it gets interrupted here?
-        
-        cpu::self()->impl_ptr->running_context = next_context;
-        
-        swapcontext(this_context, next_context);
+        else
+        {
+            ucontext_t *next_context = ready_queue.front(); 
+            assert(context_count(next_context) == 1);
+            ready_queue.pop();
+            cpu::self()->impl_ptr->running_context = next_context;
+            swapcontext(this_context, next_context);
+        }
+            
     }
     //Delete done threads
     //printf("Del %i threads in join\n", delete_queue.size());

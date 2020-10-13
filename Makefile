@@ -1,4 +1,4 @@
-CC=g++ -fsanitize=address -g -Wall
+CC=g++ -g -Wall
 
 # List of source files for your thread library
 THREAD_SOURCES=cpu.cpp thread.cpp mutex.cpp cv.cpp
@@ -14,7 +14,7 @@ libthread.o: ${THREAD_OBJS}
 	ld -r -o $@ ${THREAD_OBJS}
 
 # Compile an application program
-app: test_mutex.cpp libthread.o libcpu.o
+app: test_mutex_simple.cpp libthread.o libcpu.o
 	${CC} -o $@ $^ -ldl -pthread
 
 # Generic rules for compiling a source file to an object file

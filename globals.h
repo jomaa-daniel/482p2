@@ -16,7 +16,7 @@ extern  std::vector<cpu*> running_cpus;
 
 
 // ==========
-bool occurs_once();
+int count_running_instances();
 bool cpus_run_different_contexts();
 void clean_delete_list();
 void wake_cpu();

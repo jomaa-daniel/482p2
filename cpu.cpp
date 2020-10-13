@@ -18,6 +18,7 @@ void timer_handler()
 {
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)) {}
+    //printf("time handler was called\n");
     assert(cpus_run_different_contexts());
     if (!ready_queue.empty()){
                
@@ -37,31 +38,34 @@ void ipi_handler()
 {
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)) {}
+    //printf("IPI was called\n");
     //assert(!ready_queue.empty());
-    if(ready_queue.empty())
+    if(!ready_queue.empty())
     {
-        setcontext(cpu::self()->impl_ptr->sleep_context);
+        cpu *cpu_ptr = cpu::self();
+        ucontext_t *next_context = ready_queue.front();
+        ready_queue.pop();
+        cpu_ptr->impl_ptr->running_context = next_context;
+        swapcontext(cpu::self()->impl_ptr->sleep_context, next_context); 
+        //setcontext(next_context);        
     }
-    
-    cpu *cpu_ptr = cpu::self();
-    ucontext_t *next_context = ready_queue.front();
-    ready_queue.pop();
-    cpu_ptr->impl_ptr->running_context = next_context;
-    //swapcontext(cpu::self()->impl_ptr->sleep_context, next_context); 
-    setcontext(next_context);
 }
 
 
 void sleeper_func(){
-    sleeping_queue.push(cpu::self());
-    cpu::self()->impl_ptr->running_context = cpu::self()->impl_ptr->sleep_context;
-    cpu::guard.store(false);
-    cpu::interrupt_enable_suspend();
+    while (true){
+        //printf("Sleep function was called\n");
+        sleeping_queue.push(cpu::self());
+        cpu::self()->impl_ptr->running_context = cpu::self()->impl_ptr->sleep_context;
+        cpu::guard.store(false);
+        cpu::interrupt_enable_suspend();
+    }
     
 }
 
 
 // ====================== CPU IMPL IMPLEMENTATION ==================
+
 cpu::impl::~impl()
 {
     delete_context(this->running_context);
@@ -90,6 +94,8 @@ ucontext_t* init_context(thread_startfunc_t func, void *arg){
 }
 
 void delete_context(ucontext_t *ucp){
+    assert(ucp != nullptr);
+    assert(base_pointer_map[ucp] != nullptr);
     delete[] (char*) base_pointer_map[ucp];
     base_pointer_map.erase(ucp);
     delete ucp; 
@@ -130,9 +136,10 @@ void cpu::init(thread_startfunc_t func, void * arg)
     }
     else{
         ucontext_t *thread_cont;
-    
         thread_cont = init_context(func, arg);
+        context_to_thread[thread_cont] = nullptr;
         this->impl_ptr->running_context = thread_cont;
+        //printf("Thread A is %p\n", thread_cont);
         setcontext(thread_cont);
     }
 }

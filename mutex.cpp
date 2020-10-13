@@ -17,6 +17,7 @@ mutex::~mutex(){
 void mutex::lock(){
    cpu::interrupt_disable();
    while (cpu::guard.exchange(true)) {}
+   printf("Lock was called\n");
    //print_state(this);
     assert(cpus_run_different_contexts());
 
@@ -33,6 +34,7 @@ void mutex::lock(){
             assert(context_count(next_context) == 1);
             ready_queue.pop();
             cpu::self()->impl_ptr->running_context = next_context;
+            // printf("From %p to %p \n", this_context, next_context);
             swapcontext(this_context, next_context);            
         }
         else{ 
@@ -54,6 +56,7 @@ void mutex::unlock()
 {
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)) {}
+    // printf("Unlock was called\n");
     assert(cpus_run_different_contexts());
     if (!this->impl_ptr->busy) {throw std::runtime_error("Unlock on unlocked mutex\n");} 
     if(this->impl_ptr->holder!=cpu::self()->impl_ptr->running_context) {throw std::runtime_error("Wrong holder\n");}
