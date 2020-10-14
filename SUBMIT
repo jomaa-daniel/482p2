@@ -15,7 +15,6 @@ test_sleeping_cpus.cpp
 test_cv_not_holder.cpp
 test_cv_sig_no_mux.cpp
 test_cv_unlocked.cpp
-test_cv_wait_no_lock.cpp
 test_cv_two_mux.cpp
 test_mem.cpp
 cpu_impl.h
