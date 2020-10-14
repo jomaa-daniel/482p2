@@ -8,21 +8,25 @@ using std::cout;
 using std::endl;
 mutex m;
 
-void child(char args){
-    m.unlock();
-}
-
-
 void A(intptr_t args)
 {
     printf("Running thread: A\n");
     
-    thread b = thread((thread_startfunc_t) child, (void*) 'B');
+   
     printf("Created threads: \n");
 
-    m.unlock();
+    
     thread::yield();
-    m.unlock();
+
+    try{
+        m.lock();
+        m.unlock();
+        m.unlock();
+        exit(1);
+    }
+    catch(...){
+    }
+    
 
     printf("Input Arg: %i\n",args);
 

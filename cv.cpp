@@ -28,13 +28,23 @@ cv::~cv()
 
 void cv::wait(mutex &m)
 {
-    assert(m.impl_ptr->busy);
-
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)){}
     assert(cpus_run_different_contexts());
     //Unlock
     //printf("Calling cv wait unlock\n");
+    if (!m.impl_ptr->busy) 
+    {
+        cpu::guard.store(false);
+        cpu::interrupt_enable();
+        throw std::runtime_error("");
+    } 
+    if(m.impl_ptr->holder!=cpu::self()->impl_ptr->running_context)
+    {
+        cpu::guard.store(false);
+        cpu::interrupt_enable();
+        throw std::runtime_error("");
+    }
     m.impl_ptr->busy = false;
     m.impl_ptr->holder = nullptr;
     if (!m.impl_ptr->mutex_waiting_queue.empty())

@@ -9,7 +9,7 @@ using std::endl;
 mutex m;
 
 void child(char args){
-    m.unlock();
+    m.lock();
 }
 
 
@@ -19,9 +19,13 @@ void A(intptr_t args)
     
     thread b = thread((thread_startfunc_t) child, (void*) 'B');
     printf("Created threads: \n");
-
-    m.lock();
     thread::yield();
+    try{
+        m.unlock();
+        exit(1);
+    }
+    catch(...){
+    }
 
     printf("Input Arg: %i\n",args);
 
@@ -31,5 +35,5 @@ void A(intptr_t args)
 
 int main()
 {
-    cpu::boot(1, (thread_startfunc_t) A, (void *) 100, true, true, 0);
+    cpu::boot(1, (thread_startfunc_t) A, (void *) 100, false, false, 0);
 }
