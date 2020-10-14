@@ -58,8 +58,8 @@ void mutex::unlock()
     while (cpu::guard.exchange(true)) {}
     // printf("Unlock was called\n");
     assert(cpus_run_different_contexts());
-    if (!this->impl_ptr->busy) {throw std::runtime_error("Unlock on unlocked mutex\n");} 
-    if(this->impl_ptr->holder!=cpu::self()->impl_ptr->running_context) {throw std::runtime_error("Wrong holder\n");}
+    if (!this->impl_ptr->busy) {throw std::runtime_error("");} 
+    if(this->impl_ptr->holder!=cpu::self()->impl_ptr->running_context) {throw std::runtime_error("");}
     this->impl_ptr->busy = false;
     this->impl_ptr->holder = nullptr;
     if (!this->impl_ptr->mutex_waiting_queue.empty())

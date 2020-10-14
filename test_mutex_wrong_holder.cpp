@@ -22,7 +22,6 @@ void A(intptr_t args)
 
     m.lock();
     thread::yield();
-    m.unlock();
 
     printf("Input Arg: %i\n",args);
 
@@ -32,5 +31,5 @@ void A(intptr_t args)
 
 int main()
 {
-    cpu::boot(1, (thread_startfunc_t) A, (void *) 100, false, false, 0);
+    cpu::boot(1, (thread_startfunc_t) A, (void *) 100, true, true, 0);
 }
