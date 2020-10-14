@@ -17,7 +17,7 @@ mutex::~mutex(){
 void mutex::lock(){
    cpu::interrupt_disable();
    while (cpu::guard.exchange(true)) {}
-   printf("Lock was called\n");
+   //printf("Lock was called\n");
    //print_state(this);
     assert(cpus_run_different_contexts());
 

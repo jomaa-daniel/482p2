@@ -22,12 +22,12 @@ void parent(intptr_t args)
     thread c = thread((thread_startfunc_t) child, (void*) 'C');
     m.lock();
     printf("Running thread A \n", args);
-    //thread::yield();
+    thread::yield();
     m.unlock();
 
 }
 
-int main()
+int main() 
 {
-    cpu::boot(3, (thread_startfunc_t) parent, (void *) 100, false, true, 0);
+    cpu::boot(8, (thread_startfunc_t) parent, (void *) 100, true, true, 22);
 }

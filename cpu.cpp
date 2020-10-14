@@ -20,14 +20,13 @@ void timer_handler()
     while (cpu::guard.exchange(true)) {}
     //printf("time handler was called\n");
     assert(cpus_run_different_contexts());
-    if (!ready_queue.empty()){
-               
+    ucontext_t* this_context = cpu::self()->impl_ptr->running_context; 
+    if (!ready_queue.empty() && this_context != cpu::self()->impl_ptr->sleep_context){               
         ucontext_t* next_context = ready_queue.front();
         ready_queue.pop(); 
-        ucontext_t* this_context = cpu::self()->impl_ptr->running_context; 
         cpu::self()->impl_ptr->running_context = next_context;
         ready_queue.push(this_context);
-        wake_cpu();
+       // wake_cpu();
         swapcontext(this_context, next_context);
     }
     cpu::guard.store(false);
@@ -59,6 +58,7 @@ void sleeper_func(){
         cpu::self()->impl_ptr->running_context = cpu::self()->impl_ptr->sleep_context;
         cpu::guard.store(false);
         cpu::interrupt_enable_suspend();
+        
     }
     
 }

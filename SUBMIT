@@ -6,11 +6,13 @@ globals.h
 mutex_impl.h
 mutex.cpp
 test_app.cpp
+test_cv1.cpp
 test_cv.cpp
-test_join.cpp
 test_mutex.cpp
 test_example.cpp
+test_join.cpp
 test_join_multiple.cpp
+test_join_chain.cpp
 test_join_on_null.cpp
 test_mutex_double_unlock.cpp
 test_mutex_simple.cpp

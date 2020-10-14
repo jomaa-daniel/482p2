@@ -300,7 +300,7 @@ void thread::join(){
     // if thi
     // if this threads context is on delete queue, continue, ignore everything and go
     
-    if (this->impl_ptr->alive == true){
+    if ( this->impl_ptr->alive == true){
         ucontext_t* this_context = cpu::self()->impl_ptr->running_context;
         assert(context_count(this_context) == 0);
         if (waiting_map.find(this->impl_ptr->context_ptr) == end(waiting_map))
