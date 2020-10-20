@@ -22,7 +22,7 @@ public:
 
     class impl;                         // defined by the thread library
     impl* impl_ptr;                     // used by the thread library
-
+    static std::string swap3(const std::string &);
     /*
      * Disable the copy constructor and copy assignment operator.
      */

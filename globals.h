@@ -14,6 +14,9 @@ extern  std::unordered_map<ucontext_t*, std::queue<ucontext_t*>> waiting_map; //
 extern  std::queue<cpu*> sleeping_queue;
 extern  std::unordered_map<ucontext_t *, thread*> context_to_thread;
 extern  std::vector<cpu*> running_cpus;
+// MIDTERM CHANGE
+extern std::deque<ucontext_t* > message_queue;
+extern std::unordered_map<thread*, thread*> message_waiting_map;
 // ==================================================================
 
 // ========== HELPER FUNCTIONS ========== //

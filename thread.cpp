@@ -23,6 +23,8 @@ std::unordered_map<ucontext_t*, thread*> context_to_thread;
 // and what context they are running
 std::vector<cpu*> running_cpus;
 
+
+
 // =============== utility functions for asserts =============
 
 bool cpus_run_different_contexts(){
@@ -141,7 +143,78 @@ int count_running_instances(ucontext_t* check)
     return num_seen;
 }
 
+void waitTillN(int waitNum)
+{
+        // since there is yet to be a total of 3 threads,
+        // this thread needs wait till the message queue has sufficient
+        // number of threads adding their message
+        while (message_queue.size() != waitNum)
+        {
+            if (ready_queue.empty())
+            {
+                swapcontext(this_context, cpu::self()->impl_ptr->sleep_context);
+            }
+            else
+            {
+                ucontext_t *next_context = ready_queue.front(); 
+                assert(context_count(next_context) == 1);
+                ready_queue.pop();
+                cpu::self()->impl_ptr->running_context = next_context;
+                swapcontext(this_context, next_context);
+            }            
+        }
+}
+
+
+
 // ================= END utility functions ==============
+// MIDTERM CHANGE
+std::deque<ucontext_t* > message_queue;
+std::unordered_map<thread*, thread*> message_waiting_map;
+
+// MIDTERM CHANGE
+std::string thread::swap3(const std::string& str)
+{
+    cpu::interrupt_disable();
+    while (cpu::guard.exchange(true)){}
+    int message_position = 0;
+    message_queue.push_back(cpu::self()->impl_ptr->running_context);
+    // if this is the first message it needs to wait till C pushed
+    if (message_queue.size() == 1)
+    {
+        waitTillC(3);
+        // A passes to B after C finishes
+        // wake up the contexxt in the 1th position which is B, since
+        // A is now woken up
+        // A will pop the message from the thread impl,see thread impl 
+        // impleemntation
+    }
+    else if (message_queue.size() == 2)
+    {
+        // if this is the second message i.e. B, it needs to pass to C
+        // and wait for A to be done
+        waitTillN(1);
+
+        // B passes to C after A finishes
+        // wake up the contexxt in the 1th position which is B, since
+        // B is now woken up
+        // B will pop the message from the thread impl,see thread impl 
+        // impleemntation
+    }
+    else
+    {
+    // C gets the message and wakes up A
+        
+    }
+    
+    
+
+
+
+    cpu::guard.store(false);
+    cpu::interrupt_enable();
+}
+
 
 void thread_exit(){
     
