@@ -8,6 +8,7 @@ class thread::impl{
     int thread_id;
     bool alive;
     std::string message;
+    void message_sleep();
     impl();
     ~impl();
 };

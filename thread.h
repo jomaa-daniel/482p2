@@ -1,3 +1,4 @@
+#include <string>
 /*
  * thread.h -- public interface to thread library
  *

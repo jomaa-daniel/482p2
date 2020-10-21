@@ -143,25 +143,18 @@ int count_running_instances(ucontext_t* check)
     return num_seen;
 }
 
-void waitTillN(int waitNum)
+void message_sleep(ucontext_t* this_context)
 {
-        // since there is yet to be a total of 3 threads,
-        // this thread needs wait till the message queue has sufficient
-        // number of threads adding their message
-        while (message_queue.size() != waitNum)
+        if(!ready_queue.empty()){
+            ucontext_t* next_context = ready_queue.front();
+            assert(context_count(next_context) == 1);
+            ready_queue.pop();
+            cpu::self()->impl_ptr->running_context = next_context;
+            swapcontext(this_context, next_context);            
+        }
+        else
         {
-            if (ready_queue.empty())
-            {
-                swapcontext(this_context, cpu::self()->impl_ptr->sleep_context);
-            }
-            else
-            {
-                ucontext_t *next_context = ready_queue.front(); 
-                assert(context_count(next_context) == 1);
-                ready_queue.pop();
-                cpu::self()->impl_ptr->running_context = next_context;
-                swapcontext(this_context, next_context);
-            }            
+            swapcontext(this_context,  cpu::self()->impl_ptr->sleep_context);
         }
 }
 
@@ -171,48 +164,74 @@ void waitTillN(int waitNum)
 // MIDTERM CHANGE
 std::deque<ucontext_t* > message_queue;
 std::unordered_map<thread*, thread*> message_waiting_map;
+ucontext_t* C = nullptr;
+ucontext_t* B = nullptr;
+ucontext_t* A = nullptr;
 
 // MIDTERM CHANGE
 std::string thread::swap3(const std::string& str)
 {
     cpu::interrupt_disable();
     while (cpu::guard.exchange(true)){}
-    int message_position = 0;
-    message_queue.push_back(cpu::self()->impl_ptr->running_context);
-    // if this is the first message it needs to wait till C pushed
-    if (message_queue.size() == 1)
-    {
-        waitTillC(3);
-        // A passes to B after C finishes
-        // wake up the contexxt in the 1th position which is B, since
-        // A is now woken up
-        // A will pop the message from the thread impl,see thread impl 
-        // impleemntation
-    }
-    else if (message_queue.size() == 2)
-    {
-        // if this is the second message i.e. B, it needs to pass to C
-        // and wait for A to be done
-        waitTillN(1);
 
-        // B passes to C after A finishes
-        // wake up the contexxt in the 1th position which is B, since
-        // B is now woken up
-        // B will pop the message from the thread impl,see thread impl 
-        // impleemntation
+    ucontext_t* this_context = cpu::self()->impl_ptr->running_context;
+    std::string return_message;    
+
+    if (A == nullptr)
+    {
+        A = this_context;
+        // set the message of the corresponding thread;
+        // we know that this must be a live thread because
+        // A will block till C is done
+        context_to_thread[this_context]->impl_ptr->message = str;     
+
+        message_sleep(this_context);
+        // i only wake back up when C runs and swaps to here, therefore
+        // i know that C must be != nullptr
+        assert(C != nullptr);
+        thread* C_thread = context_to_thread[C];
+        return_message = C_thread->impl_ptr->message;
+        // now i need to go to B to forward the message
+        swapcontext(this_context, B);
+        A = nullptr;
+
     }
+    // if we get to this point, that means that this is the second
+    // thread to have called this function
+    else if (B == nullptr)
+    {
+        B = this_context;     
+        // go to sleep and wait to be woken up by A
+        message_sleep(this_context);
+        // i only wake back up when A runs and swaps to here, therefore
+        // i know that A must be != nullptr
+        assert(A != nullptr);
+        thread* A_thread = context_to_thread[A];
+        return_message = A_thread->impl_ptr->message;
+        // since B is the last thing that runs, it does not need to swap to anything
+        B = nullptr;
+    }
+    // at this point both A and B are waiting to be woken up
     else
     {
-    // C gets the message and wakes up A
-        
-    }
-    
-    
+        C = this_context;
+
+        // C will not go to sleep because it does not need to block for anyone
+        assert(B != nullptr);
+
+        // get my message from B
+        return_message = context_to_thread[B]->impl_ptr->message;
+
+        // let it know that C is done
+        swapcontext(this_context, A);
+        C = nullptr;
+    }   
 
 
 
     cpu::guard.store(false);
     cpu::interrupt_enable();
+    return return_message;
 }
 
 
