@@ -168,6 +168,34 @@ ucontext_t* C = nullptr;
 ucontext_t* B = nullptr;
 ucontext_t* A = nullptr;
 
+/*
+EXPLANATION FOR PARTIAL CREDIT:
+The idea is that the first thread that calls swap will 
+be designated as A, the second will be B and the third C since that is the 
+order of the if statments
+ORDER OF EVENTS
+All threads will set the internal message variable at the beginning
+
+A will go to sleep and wait to be woken by C
+
+B will go to sleep and wait to be woken by A
+
+C will not go to sleep
+C gets the message from B using a map to get to the thread
+then swaps to A
+
+A runs, gets the message from C and swaps to B
+
+B is last and will not swap, it gets the message from A using map 
+and returns to A via ready_queue
+
+next A runs then returns
+
+next C runs and returns
+
+
+
+*/
 // MIDTERM CHANGE
 std::string thread::swap3(const std::string& str)
 {
@@ -176,14 +204,13 @@ std::string thread::swap3(const std::string& str)
 
     ucontext_t* this_context = cpu::self()->impl_ptr->running_context;
     std::string return_message;    
-
+    context_to_thread[this_context]->impl_ptr->message = str;     
     if (A == nullptr)
     {
         A = this_context;
         // set the message of the corresponding thread;
         // we know that this must be a live thread because
         // A will block till C is done
-        context_to_thread[this_context]->impl_ptr->message = str;     
 
         message_sleep(this_context);
         // i only wake back up when C runs and swaps to here, therefore
